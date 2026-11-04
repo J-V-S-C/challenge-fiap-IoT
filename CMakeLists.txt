@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
+find_package(SQLite3 REQUIRED)
 
 find_package(nlohmann_json 3.11.3 QUIET)
 if(NOT nlohmann_json_FOUND)
@@ -28,5 +29,6 @@ add_executable(clinical_simulator
 )
 target_include_directories(clinical_simulator PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cpp-httplib
+    ${SQLite3_INCLUDE_DIRS}
 )
-target_link_libraries(clinical_simulator PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(clinical_simulator PRIVATE nlohmann_json::nlohmann_json ${SQLite3_LIBRARIES})

@@ -1,10 +1,25 @@
 #include "simulation_api.h"
 
 #include <nlohmann/json.hpp>
+#include <cstdint>
+#include <limits>
 
 #include "simulation_store.h"
 
 using json = nlohmann::json;
+
+bool isValidPositiveInt(const json& value)
+{
+    if (!value.is_number_integer()) {
+        return false;
+    }
+    if (value.is_number_unsigned()) {
+        const auto number = value.get<std::uint64_t>();
+        return number > 0 && number <= std::numeric_limits<int>::max();
+    }
+    const auto number = value.get<std::int64_t>();
+    return number > 0 && number <= std::numeric_limits<int>::max();
+}
 
 bool readJson(
     const httplib::Request& request,
@@ -42,8 +57,8 @@ void sendResponse(
     httplib::Response& response
 )
 {
-    response.status = data.value("_http_status", successStatus);
-    data.erase("_http_status");
+    response.status = data.is_object() ? data.value("_http_status", successStatus) : successStatus;
+    if (data.is_object()) data.erase("_http_status");
     response.set_content(data.dump(), "application/json");
 }
 
@@ -60,18 +75,20 @@ void postSimulations(
 
     if (
         !data.contains("time_limit_minutes") ||
-        !data["time_limit_minutes"].is_number_integer()
+        !isValidPositiveInt(data["time_limit_minutes"]) ||
+        (data.contains("case_id") && !isValidPositiveInt(data["case_id"]))
     ) {
         response.status = 400;
         response.set_content(
-            R"({"error":{"code":"invalid_field","message":"time_limit_minutes must be an integer."}})",
+            R"({"error":{"code":"invalid_field","message":"time_limit_minutes and case_id must be positive integers within the supported range."}})",
             "application/json"
         );
         return;
     }
 
     int timeLimit = data["time_limit_minutes"];
-    json result = startSimulation(timeLimit);
+    int caseId = data.value("case_id", 1);
+    json result = startSimulation(timeLimit, caseId);
     sendResponse(result, 201, response);
 }
 
@@ -90,11 +107,11 @@ void postInteractions(
         !data.contains("student_text") ||
         !data["student_text"].is_string() ||
         !data.contains("elapsed_minutes") ||
-        !data["elapsed_minutes"].is_number_integer()
+        !isValidPositiveInt(data["elapsed_minutes"])
     ) {
         response.status = 400;
         response.set_content(
-            R"({"error":{"code":"invalid_field","message":"student_text and elapsed_minutes are required."}})",
+            R"({"error":{"code":"invalid_field","message":"student_text and a positive integer elapsed_minutes are required."}})",
             "application/json"
         );
         return;
@@ -113,24 +130,32 @@ void postFinishSimulation(
     httplib::Response& response
 )
 {
-    json data;
-
-    if (!readJson(request, response, data)) {
-        return;
-    }
-
-    if (!data.contains("outcome") || !data["outcome"].is_string()) {
-        response.status = 400;
-        response.set_content(
-            R"({"error":{"code":"invalid_field","message":"outcome is required."}})",
-            "application/json"
-        );
-        return;
-    }
-
     std::string id = request.matches[1];
-    std::string outcome = data["outcome"];
-
-    json result = finishSimulation(id, outcome);
+    json result = finishSimulation(id);
     sendResponse(result, 200, response);
+}
+
+void getSimulationById(const httplib::Request& request, httplib::Response& response)
+{
+    sendResponse(getSimulation(request.matches[1]), 200, response);
+}
+
+void getResult(const httplib::Request& request, httplib::Response& response)
+{
+    sendResponse(getSimulationResult(request.matches[1]), 200, response);
+}
+
+void getCases(const httplib::Request&, httplib::Response& response)
+{
+    sendResponse(listCases(), 200, response);
+}
+
+void getCaseById(const httplib::Request& request, httplib::Response& response)
+{
+    sendResponse(getCase(request.matches[1]), 200, response);
+}
+
+void getSimulations(const httplib::Request&, httplib::Response& response)
+{
+    sendResponse(listSimulations(), 200, response);
 }

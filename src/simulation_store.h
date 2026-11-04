@@ -5,7 +5,13 @@
 
 #include <nlohmann/json.hpp>
 
-nlohmann::json startSimulation(int timeLimit);
+bool initializeStore(const std::string& path);
+void closeStore();
+
+nlohmann::json listCases();
+nlohmann::json getCase(const std::string& id);
+nlohmann::json listSimulations();
+nlohmann::json startSimulation(int timeLimit, int caseId);
 
 nlohmann::json registerInteraction(
     const std::string& id,
@@ -14,9 +20,12 @@ nlohmann::json registerInteraction(
 );
 
 nlohmann::json finishSimulation(
-    const std::string& id,
-    const std::string& outcome
+    const std::string& id
 );
+
+nlohmann::json getSimulation(const std::string& id);
+
+nlohmann::json getSimulationResult(const std::string& id);
 
 #endif
 
