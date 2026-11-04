@@ -1,10 +1,11 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "Building..."
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build --clean-first
+cmake --build build
 
 echo "Starting..."
 
-./build/clinical_simulator
+exec ./build/clinical_simulator
